@@ -12,29 +12,32 @@ logger = logging.getLogger(__name__)
 
 
 def get_transcript(video_id: str) -> Optional[str]:
-    """자막 추출. 한국어 우선 → 영어 → None."""
+    """자막 추출. 한국어 우선 → 영어 → None. 쿠키 파일이 있으면 IP 우회를 위해 적용합니다."""
     try:
         from youtube_transcript_api import YouTubeTranscriptApi
         from youtube_transcript_api._errors import TranscriptsDisabled, NoTranscriptFound
+        from config import YOUTUBE_COOKIES_PATH
 
-        api = YouTubeTranscriptApi()
+        cookie_kwarg = {}
+        if YOUTUBE_COOKIES_PATH.exists() and YOUTUBE_COOKIES_PATH.stat().st_size > 0:
+            cookie_kwarg["cookies"] = str(YOUTUBE_COOKIES_PATH)
 
         # 한국어 → 영어 순서로 시도
         for lang in (["ko"], ["en"], None):
             try:
                 if lang is None:
                     # 마지막 시도: 사용 가능한 아무 자막
-                    fetched = api.fetch(video_id)
+                    fetched = YouTubeTranscriptApi.get_transcript(video_id, **cookie_kwarg)
                 else:
-                    fetched = api.fetch(video_id, languages=lang)
-                text = " ".join(s.text for s in fetched)
+                    fetched = YouTubeTranscriptApi.get_transcript(video_id, languages=lang, **cookie_kwarg)
+                text = " ".join(s["text"] for s in fetched)
                 return text.strip() if text else None
             except NoTranscriptFound:
                 continue
             except TranscriptsDisabled:
                 return None
             except Exception as e:
-                logger.warning("자막 추출 오류 (IP 차단 의심): %s", e)
+                logger.warning("자막 추출 오류 (IP 차단 의심 혹은 쿠키 만료 등): %s", e)
                 return None
         return None
     except ImportError:

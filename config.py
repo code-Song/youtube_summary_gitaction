@@ -24,6 +24,8 @@ YOUTUBE_CREDENTIALS_PATH = BASE_DIR / "youtube_credentials.json"
 YOUTUBE_TOKEN_PATH = BASE_DIR / "youtube_token.json"
 YOUTUBE_CHANNELS_FILE = BASE_DIR / "channels.txt"
 
+YOUTUBE_COOKIES_PATH = BASE_DIR / "youtube_cookies.txt"
+
 # GitHub Secrets에 저장된 파일 내용을 복원
 def _restore_secret_file(env_var: str, target_path: Path):
     content = os.environ.get(env_var, "")
@@ -33,6 +35,7 @@ def _restore_secret_file(env_var: str, target_path: Path):
 
 _restore_secret_file("YOUTUBE_TOKEN_JSON", YOUTUBE_TOKEN_PATH)
 _restore_secret_file("YOUTUBE_CHANNELS_TXT", YOUTUBE_CHANNELS_FILE)
+_restore_secret_file("YOUTUBE_COOKIES_TXT", YOUTUBE_COOKIES_PATH)
 
 # Gemini
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
