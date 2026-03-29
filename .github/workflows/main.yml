@@ -1,0 +1,52 @@
+name: 📺 YouTube Daily Summary Email
+
+on:
+  schedule:
+    # 매일 아침 6시 (시간대 KST 완벽 분리 적용됨)
+    - cron: '0 21 * * *'
+  workflow_dispatch:
+    inputs:
+      days_to_check:
+        description: '조회할 일수 (기본: 1)'
+        required: false
+        default: '1'
+
+jobs:
+  summarize:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # 시청한 비디오 목록을 저장하기 위한 커밋 권한
+
+    steps:
+      - name: 📥 코드 체크아웃
+        uses: actions/checkout@v4
+
+      - name: 🐍 Python 설정
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+
+      - name: 📦 패키지 설치
+        run: pip install -r requirements.txt
+
+      - name: 📺 유튜브 요약 봇 실행 (메일 전송)
+        env:
+          TZ: "Asia/Seoul"
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          YOUTUBE_TOKEN_JSON: ${{ secrets.YOUTUBE_TOKEN_JSON }}
+          YOUTUBE_CHANNELS_TXT: ${{ secrets.YOUTUBE_CHANNELS_TXT }}
+          EMAIL_SENDER: ${{ secrets.EMAIL_SENDER }}
+          EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+          EMAIL_RECEIVER: ${{ secrets.EMAIL_RECEIVER }}
+          DAYS_TO_CHECK: ${{ github.event.inputs.days_to_check || '1' }}
+        run: python main.py
+
+      - name: 💾 seen_videos.json 커밋 (내일 중복 메일 방지용)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add seen_videos.json || true
+          git diff --staged --quiet || git commit -m "chore: update seen_videos [skip ci]"
+          git push
