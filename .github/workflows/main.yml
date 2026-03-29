@@ -13,7 +13,7 @@ on:
 
 jobs:
   summarize:
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
     permissions:
       contents: write   # 시청한 비디오 목록을 저장하기 위한 커밋 권한
 
