@@ -41,6 +41,7 @@ jobs:
           EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
           EMAIL_RECEIVER: ${{ secrets.EMAIL_RECEIVER }}
           DAYS_TO_CHECK: ${{ github.event.inputs.days_to_check || '1' }}
+          YOUTUBE_COOKIES_TXT: ${{ secrets.YOUTUBE_COOKIES_TXT }}
         run: python main.py
 
       - name: 💾 seen_videos.json 커밋 (내일 중복 메일 방지용)
