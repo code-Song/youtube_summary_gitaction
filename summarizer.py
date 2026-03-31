@@ -17,27 +17,57 @@ def get_transcript(video_id: str) -> Optional[str]:
         from youtube_transcript_api import YouTubeTranscriptApi
         from youtube_transcript_api._errors import TranscriptsDisabled, NoTranscriptFound
         from config import YOUTUBE_COOKIES_PATH
+        import requests
+        import http.cookiejar
 
-        cookie_kwarg = {}
+        session = requests.Session()
         if YOUTUBE_COOKIES_PATH.exists() and YOUTUBE_COOKIES_PATH.stat().st_size > 0:
-            cookie_kwarg["cookies"] = str(YOUTUBE_COOKIES_PATH)
+            try:
+                cj = http.cookiejar.MozillaCookieJar(str(YOUTUBE_COOKIES_PATH))
+                cj.load(ignore_discard=True, ignore_expires=True)
+                session.cookies.update(cj)
+            except Exception as e:
+                logger.warning("쿠키 파일 로딩 실패: %s", e)
+
+        # 구 버전과 신 버전 API 혼용 방어
+        try:
+            api = YouTubeTranscriptApi(http_client=session)
+            use_fetch = True
+        except TypeError:
+            # 0.6.x 이전 버전이거나 http_client 미지원일 경우
+            try:
+                api = YouTubeTranscriptApi()
+                use_fetch = hasattr(api, 'fetch')
+            except Exception:
+                use_fetch = False
 
         # 한국어 → 영어 순서로 시도
         for lang in (["ko"], ["en"], None):
             try:
-                if lang is None:
-                    # 마지막 시도: 사용 가능한 아무 자막
-                    fetched = YouTubeTranscriptApi.get_transcript(video_id, **cookie_kwarg)
+                if use_fetch:
+                    if lang is None:
+                        fetched = api.fetch(video_id)
+                    else:
+                        fetched = api.fetch(video_id, languages=lang)
+                    # dict인지 객체인지 혼용되는 버그 방어
+                    text = " ".join((s["text"] if isinstance(s, dict) else getattr(s, "text", "")) for s in fetched)
+                    return text.strip() if text else None
                 else:
-                    fetched = YouTubeTranscriptApi.get_transcript(video_id, languages=lang, **cookie_kwarg)
-                text = " ".join(s["text"] for s in fetched)
-                return text.strip() if text else None
+                    # 완전 구식 버전(0.4 이하)이거나 get_transcript가 존재하는 경우
+                    cookie_kwarg = {"cookies": str(YOUTUBE_COOKIES_PATH)} if YOUTUBE_COOKIES_PATH.exists() else {}
+                    if lang is None:
+                        fetched = YouTubeTranscriptApi.get_transcript(video_id, **cookie_kwarg)
+                    else:
+                        fetched = YouTubeTranscriptApi.get_transcript(video_id, languages=lang, **cookie_kwarg)
+                    text = " ".join(s["text"] for s in fetched)
+                    return text.strip() if text else None
             except NoTranscriptFound:
                 continue
             except TranscriptsDisabled:
                 return None
             except Exception as e:
-                logger.warning("자막 추출 오류 (IP 차단 의심 혹은 쿠키 만료 등): %s", e)
+                # IP 차단 의심 혹은 지원되지 않는 동작 발생
+                logger.warning("[%s] 자막 추출 오류: %s", lang or "기본", e)
                 return None
         return None
     except ImportError:
