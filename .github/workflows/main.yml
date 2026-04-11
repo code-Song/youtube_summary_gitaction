@@ -3,7 +3,7 @@ name: 📺 YouTube Daily Summary Email
 on:
   schedule:
     # 매일 아침 6시 (시간대 KST 완벽 분리 적용됨)
-    - cron: '0 21 * * *'
+    # - cron: '0 21 * * *'
   workflow_dispatch:
     inputs:
       days_to_check:
